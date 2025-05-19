@@ -1,4 +1,13 @@
+import * as React from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function Home() {
   return (
@@ -20,15 +29,22 @@ export default function Home() {
       >
         <h1>Hello World</h1>
         <p>This is a test</p>
-        <Button variant="secondary" size="lg">
-          Click me
-        </Button>
-        <Button variant="ghost" size="sm">
-          Click me
-        </Button>
-        <Button variant="destructive" size="lg">
-          Click me
-        </Button>
+        {/* Modal and button logic using shadcn modal */}
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="destructive" size="lg">
+              Click me
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Welcome to the jungle</DialogTitle>
+            </DialogHeader>
+            <DialogFooter>
+              {/* Optionally, you can add a close button or actions here */}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
