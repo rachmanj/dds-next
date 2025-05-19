@@ -17,7 +17,7 @@ interface Project {
   code: string;
   owner: string;
   location: string;
-  [key: string]: any; // Allow for other properties
+  [key: string]: string | number; // Replace 'any' with more specific types
 }
 
 // Get API URL from environment variable with fallback for safety
@@ -43,8 +43,11 @@ export default function Home() {
 
       const data = await response.json();
       setProjects(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to fetch projects");
+    } catch (err: unknown) {
+      // Replace 'any' with 'unknown' for better type safety
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to fetch projects";
+      setError(errorMessage);
       console.error("Error fetching projects:", err);
     } finally {
       setLoading(false);
