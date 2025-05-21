@@ -2,6 +2,9 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { useAuth } from "@/lib/AuthContext";
+import api, { testApiConnection } from "@/lib/api";
 import {
   Dialog,
   DialogTrigger,
@@ -20,37 +23,59 @@ interface Project {
   [key: string]: string | number; // Replace 'any' with more specific types
 }
 
-// Get API URL from environment variable with fallback for safety
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+// Set the client-side environment indicator for debugging
+console.log("=== HOME PAGE - Environment Variables ===");
+console.log("- NODE_ENV:", process.env.NODE_ENV);
+console.log("- NEXT_PUBLIC_BACKEND_URL:", process.env.NEXT_PUBLIC_BACKEND_URL);
+console.log(
+  "- Window location:",
+  typeof window !== "undefined" ? window.location.href : "SSR"
+);
 
 export default function Home() {
+  const { user, loading: authLoading } = useAuth();
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = React.useState<any>(null);
+  const [testingConnection, setTestingConnection] = React.useState(false);
 
   const fetchProjects = async () => {
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `${API_BASE_URL}/api/projects`;
-      console.log("Fetching from:", apiUrl); // Log the URL for debugging
+      console.log("===== Fetching projects via proxy route =====");
 
-      const response = await fetch(apiUrl);
+      // Use the proxy route instead of direct API call
+      const response = await api.get("/api/projects");
+      console.log("Projects API response received:", response.status);
+      console.log("Response data:", response.data);
 
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setProjects(data);
+      setProjects(response.data);
     } catch (err: unknown) {
-      // Replace 'any' with 'unknown' for better type safety
       const errorMessage =
         err instanceof Error ? err.message : "Failed to fetch projects";
       setError(errorMessage);
       console.error("Error fetching projects:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const testConnection = async () => {
+    setTestingConnection(true);
+    try {
+      const result = await testApiConnection();
+      setConnectionStatus(result);
+    } catch (error) {
+      console.error("Error testing connection:", error);
+      setConnectionStatus({
+        success: false,
+        message: "Exception occurred during connection test",
+        error: String(error),
+      });
+    } finally {
+      setTestingConnection(false);
     }
   };
 
@@ -74,20 +99,128 @@ export default function Home() {
           padding: "1rem",
         }}
       >
-        <h1>Projects</h1>
-        <p>Click the button below to fetch projects</p>
+        <h1 className="text-3xl font-bold">Next.js with Laravel Sanctum</h1>
+        <p className="text-center max-w-md">
+          This is a demo showing Next.js integration with Laravel Sanctum for
+          cookie-based authentication.
+        </p>
 
-        <Button
-          variant="destructive"
-          size="lg"
-          onClick={fetchProjects}
-          disabled={loading}
+        {/* Authentication status card */}
+        <div
+          style={{
+            padding: "1rem",
+            border: "1px solid #ddd",
+            borderRadius: "8px",
+            marginTop: "1rem",
+            width: "100%",
+            maxWidth: "500px",
+            backgroundColor: "#f9f9f9",
+          }}
         >
-          {loading ? "Loading..." : "Fetch Projects"}
-        </Button>
+          <h2 className="text-xl font-bold mb-2">Authentication Status</h2>
+          {authLoading ? (
+            <p>Checking authentication status...</p>
+          ) : user ? (
+            <div>
+              <p className="text-green-600 font-bold">✅ Authenticated</p>
+              <p>Logged in as: {user.email}</p>
+              <p>User ID: {user.id}</p>
+              <p>Name: {user.name}</p>
+            </div>
+          ) : (
+            <p className="text-red-600">❌ Not authenticated</p>
+          )}
+        </div>
+
+        <div className="flex space-x-4 mt-4">
+          {!authLoading && (
+            <>
+              {user ? (
+                <Link href="/dashboard">
+                  <Button variant="default">Go to Dashboard</Button>
+                </Link>
+              ) : (
+                <Link href="/login">
+                  <Button variant="default">Login</Button>
+                </Link>
+              )}
+            </>
+          )}
+
+          <Button
+            variant="destructive"
+            onClick={fetchProjects}
+            disabled={loading}
+          >
+            {loading ? "Loading..." : "Fetch Projects"}
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={testConnection}
+            disabled={testingConnection}
+          >
+            {testingConnection ? "Testing..." : "Test Connection"}
+          </Button>
+        </div>
 
         {error && (
           <div style={{ color: "red", marginTop: "1rem" }}>{error}</div>
+        )}
+
+        {connectionStatus && (
+          <div
+            style={{
+              padding: "1rem",
+              border: "1px solid #ddd",
+              borderRadius: "8px",
+              marginTop: "1rem",
+              width: "100%",
+              maxWidth: "500px",
+              backgroundColor: connectionStatus.success ? "#f0fff4" : "#fff5f5",
+              borderColor: connectionStatus.success ? "#68d391" : "#fc8181",
+            }}
+          >
+            <h2 className="text-xl font-bold mb-2">
+              API Connection Test Results
+            </h2>
+            <p>
+              <strong>Status:</strong>{" "}
+              {connectionStatus.success ? "✅ Connected" : "❌ Failed"}
+            </p>
+            <p>
+              <strong>Message:</strong> {connectionStatus.message}
+            </p>
+            {connectionStatus.statusCode && (
+              <p>
+                <strong>Status Code:</strong> {connectionStatus.statusCode}
+              </p>
+            )}
+            {connectionStatus.responseTime && (
+              <p>
+                <strong>Response Time:</strong> {connectionStatus.responseTime}
+                ms
+              </p>
+            )}
+            {connectionStatus.cookies && (
+              <p>
+                <strong>Cookies:</strong> {connectionStatus.cookies}
+              </p>
+            )}
+            {connectionStatus.details && (
+              <p>
+                <strong>Details:</strong>{" "}
+                {typeof connectionStatus.details === "object"
+                  ? JSON.stringify(connectionStatus.details)
+                  : connectionStatus.details}
+              </p>
+            )}
+            {connectionStatus.error && (
+              <p>
+                <strong>Error:</strong> {connectionStatus.error}
+              </p>
+            )}
+          </div>
         )}
 
         {projects.length > 0 && (
@@ -142,22 +275,31 @@ export default function Home() {
           </div>
         )}
 
-        {/* Dialog component is kept for reference */}
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              Open Dialog
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Welcome to the jungle</DialogTitle>
-            </DialogHeader>
-            <DialogFooter>
-              {/* Optionally, you can add a close button or actions here */}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* Backend Connection Test */}
+        <div
+          style={{
+            padding: "1rem",
+            border: "1px solid #ddd",
+            borderRadius: "8px",
+            marginTop: "2rem",
+            width: "100%",
+            maxWidth: "500px",
+            backgroundColor: "#f9f9f9",
+          }}
+        >
+          <h2 className="text-xl font-bold mb-2">Backend Connection</h2>
+          <p>
+            <strong>Environment:</strong> {process.env.NODE_ENV}
+          </p>
+          <p>
+            <strong>Backend URL:</strong>{" "}
+            {process.env.NEXT_PUBLIC_BACKEND_URL || "Using fallback URL"}
+          </p>
+          <p>
+            <strong>Frontend URL:</strong>{" "}
+            {typeof window !== "undefined" ? window.location.origin : "SSR"}
+          </p>
+        </div>
       </div>
     </div>
   );
